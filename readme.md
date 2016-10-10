@@ -1,5 +1,14 @@
 ### K-Mean clustering mini-project
 
+k-means clustering aims to partition n observations into k clusters in which
+each observation belongs to the cluster with the nearest mean, serving as a prototype of
+the cluster. This results in a partitioning of the data space into Voronoi cells.
+
+The k-means problem is solved using Lloyd’s algorithm.
+The average complexity is given by O(k n T), were n is the number of samples and T is the number of iteration.
+The worst case complexity is given by O(n^(k+2/p)) with n = n_samples, p = n_features. (D. Arthur and S. Vassilvitskii, ‘How slow is the k-means method?’ SoCG2006)
+In practice, the k-means algorithm is very fast (one of the fastest clustering algorithms available), but it falls in local minima. That’s why it can be useful to restart it several times.
+
 ```python
 %matplotlib inline
 import pickle
