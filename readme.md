@@ -1,0 +1,695 @@
+### K-Mean clustering mini-project
+
+```python
+%matplotlib inline
+import pickle
+import numpy
+import pandas
+import matplotlib.pyplot as plt
+import sys
+sys.path.append("./tools/")
+from feature_format import featureFormat, targetFeatureSplit
+```
+
+
+```python
+def Draw(pred, features, poi, mark_poi=False, name="image.png", f1_name="feature 1", f2_name="feature 2"):
+    """ some plotting code designed to help you visualize your clusters """
+
+    ### plot each cluster with a different color--add more colors for
+    ### drawing more than five clusters
+    colors = ["b", "c", "k", "m", "g", "y", "n", "o"]
+    for ii, pp in enumerate(pred):
+        plt.scatter(features[ii][0], features[ii][1], color = colors[pred[ii]])
+
+    ### if you like, place red stars over points that are POIs (just for funsies)
+    if mark_poi:
+        for ii, pp in enumerate(pred):
+            if poi[ii]:
+                plt.scatter(features[ii][0], features[ii][1], color="r", marker="*")
+    plt.xlabel(f1_name)
+    plt.ylabel(f2_name)
+    plt.savefig(name)
+    plt.show()
+```
+
+
+```python
+### load in the dict of dicts containing all the data on each person in the dataset
+finance_data = pandas.read_pickle("final_project_dataset.pkl")
+### there's an outlier--remove it!
+finance_data.pop("TOTAL", 0)
+```
+
+
+
+
+    {'bonus': 97343619,
+     'deferral_payments': 32083396,
+     'deferred_income': -27992891,
+     'director_fees': 1398517,
+     'email_address': 'NaN',
+     'exercised_stock_options': 311764000,
+     'expenses': 5235198,
+     'from_messages': 'NaN',
+     'from_poi_to_this_person': 'NaN',
+     'from_this_person_to_poi': 'NaN',
+     'loan_advances': 83925000,
+     'long_term_incentive': 48521928,
+     'other': 42667589,
+     'poi': False,
+     'restricted_stock': 130322299,
+     'restricted_stock_deferred': -7576788,
+     'salary': 26704229,
+     'shared_receipt_with_poi': 'NaN',
+     'to_messages': 'NaN',
+     'total_payments': 309886585,
+     'total_stock_value': 434509511}
+
+
+
+
+```python
+#finance_data.items()
+pandas.DataFrame.from_dict(finance_data, orient='columns', dtype=None)
+```
+
+
+
+
+<div>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>ALLEN PHILLIP K</th>
+      <th>BADUM JAMES P</th>
+      <th>BANNANTINE JAMES M</th>
+      <th>BAXTER JOHN C</th>
+      <th>BAY FRANKLIN R</th>
+      <th>BAZELIDES PHILIP J</th>
+      <th>BECK SALLY W</th>
+      <th>BELDEN TIMOTHY N</th>
+      <th>BELFER ROBERT</th>
+      <th>BERBERIAN DAVID</th>
+      <th>...</th>
+      <th>WASAFF GEORGE</th>
+      <th>WESTFAHL RICHARD K</th>
+      <th>WHALEY DAVID A</th>
+      <th>WHALLEY LAWRENCE G</th>
+      <th>WHITE JR THOMAS E</th>
+      <th>WINOKUR JR. HERBERT S</th>
+      <th>WODRASKA JOHN</th>
+      <th>WROBEL BRUCE</th>
+      <th>YEAGER F SCOTT</th>
+      <th>YEAP SOON</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>bonus</th>
+      <td>4175000</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>1200000</td>
+      <td>400000</td>
+      <td>NaN</td>
+      <td>700000</td>
+      <td>5249999</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>...</td>
+      <td>325000</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>3000000</td>
+      <td>450000</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>deferral_payments</th>
+      <td>2869717</td>
+      <td>178980</td>
+      <td>NaN</td>
+      <td>1295738</td>
+      <td>260455</td>
+      <td>684694</td>
+      <td>NaN</td>
+      <td>2144013</td>
+      <td>-102500</td>
+      <td>NaN</td>
+      <td>...</td>
+      <td>831299</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>deferred_income</th>
+      <td>-3081055</td>
+      <td>NaN</td>
+      <td>-5104</td>
+      <td>-1386055</td>
+      <td>-201641</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>-2334434</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>...</td>
+      <td>-583325</td>
+      <td>-10800</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>-25000</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>director_fees</th>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>3285</td>
+      <td>NaN</td>
+      <td>...</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>108579</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>email_address</th>
+      <td>phillip.allen@enron.com</td>
+      <td>NaN</td>
+      <td>james.bannantine@enron.com</td>
+      <td>NaN</td>
+      <td>frank.bay@enron.com</td>
+      <td>NaN</td>
+      <td>sally.beck@enron.com</td>
+      <td>tim.belden@enron.com</td>
+      <td>NaN</td>
+      <td>david.berberian@enron.com</td>
+      <td>...</td>
+      <td>george.wasaff@enron.com</td>
+      <td>dick.westfahl@enron.com</td>
+      <td>NaN</td>
+      <td>greg.whalley@enron.com</td>
+      <td>thomas.white@enron.com</td>
+      <td>NaN</td>
+      <td>john.wodraska@enron.com</td>
+      <td>NaN</td>
+      <td>scott.yeager@enron.com</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>exercised_stock_options</th>
+      <td>1729541</td>
+      <td>257817</td>
+      <td>4046157</td>
+      <td>6680544</td>
+      <td>NaN</td>
+      <td>1599641</td>
+      <td>NaN</td>
+      <td>953136</td>
+      <td>3285</td>
+      <td>1624396</td>
+      <td>...</td>
+      <td>1668260</td>
+      <td>NaN</td>
+      <td>98718</td>
+      <td>3282960</td>
+      <td>1297049</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>139130</td>
+      <td>8308552</td>
+      <td>192758</td>
+    </tr>
+    <tr>
+      <th>expenses</th>
+      <td>13868</td>
+      <td>3486</td>
+      <td>56301</td>
+      <td>11200</td>
+      <td>129142</td>
+      <td>NaN</td>
+      <td>37172</td>
+      <td>17355</td>
+      <td>NaN</td>
+      <td>11892</td>
+      <td>...</td>
+      <td>NaN</td>
+      <td>51870</td>
+      <td>NaN</td>
+      <td>57838</td>
+      <td>81353</td>
+      <td>1413</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>53947</td>
+      <td>55097</td>
+    </tr>
+    <tr>
+      <th>from_messages</th>
+      <td>2195</td>
+      <td>NaN</td>
+      <td>29</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>4343</td>
+      <td>484</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>...</td>
+      <td>30</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>556</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>from_poi_to_this_person</th>
+      <td>47</td>
+      <td>NaN</td>
+      <td>39</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>144</td>
+      <td>228</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>...</td>
+      <td>22</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>186</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>from_this_person_to_poi</th>
+      <td>65</td>
+      <td>NaN</td>
+      <td>0</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>386</td>
+      <td>108</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>...</td>
+      <td>7</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>24</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>loan_advances</th>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>...</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>long_term_incentive</th>
+      <td>304805</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>1586055</td>
+      <td>NaN</td>
+      <td>93750</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>...</td>
+      <td>200000</td>
+      <td>256191</td>
+      <td>NaN</td>
+      <td>808346</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>other</th>
+      <td>152</td>
+      <td>NaN</td>
+      <td>864523</td>
+      <td>2660303</td>
+      <td>69</td>
+      <td>874</td>
+      <td>566</td>
+      <td>210698</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>...</td>
+      <td>1425</td>
+      <td>401130</td>
+      <td>NaN</td>
+      <td>301026</td>
+      <td>1085463</td>
+      <td>NaN</td>
+      <td>189583</td>
+      <td>NaN</td>
+      <td>147950</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>poi</th>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>True</td>
+      <td>False</td>
+      <td>False</td>
+      <td>...</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>False</td>
+      <td>True</td>
+      <td>False</td>
+    </tr>
+    <tr>
+      <th>restricted_stock</th>
+      <td>126027</td>
+      <td>NaN</td>
+      <td>1757552</td>
+      <td>3942714</td>
+      <td>145796</td>
+      <td>NaN</td>
+      <td>126027</td>
+      <td>157569</td>
+      <td>NaN</td>
+      <td>869220</td>
+      <td>...</td>
+      <td>388167</td>
+      <td>384930</td>
+      <td>NaN</td>
+      <td>2796177</td>
+      <td>13847074</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>3576206</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>restricted_stock_deferred</th>
+      <td>-126027</td>
+      <td>NaN</td>
+      <td>-560222</td>
+      <td>NaN</td>
+      <td>-82782</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>44093</td>
+      <td>NaN</td>
+      <td>...</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>salary</th>
+      <td>201955</td>
+      <td>NaN</td>
+      <td>477</td>
+      <td>267102</td>
+      <td>239671</td>
+      <td>80818</td>
+      <td>231330</td>
+      <td>213999</td>
+      <td>NaN</td>
+      <td>216582</td>
+      <td>...</td>
+      <td>259996</td>
+      <td>63744</td>
+      <td>NaN</td>
+      <td>510364</td>
+      <td>317543</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>158403</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>shared_receipt_with_poi</th>
+      <td>1407</td>
+      <td>NaN</td>
+      <td>465</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>2639</td>
+      <td>5521</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>...</td>
+      <td>337</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>3920</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>to_messages</th>
+      <td>2902</td>
+      <td>NaN</td>
+      <td>566</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>7315</td>
+      <td>7991</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>...</td>
+      <td>400</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>6019</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>total_payments</th>
+      <td>4484442</td>
+      <td>182466</td>
+      <td>916197</td>
+      <td>5634343</td>
+      <td>827696</td>
+      <td>860136</td>
+      <td>969068</td>
+      <td>5501630</td>
+      <td>102500</td>
+      <td>228474</td>
+      <td>...</td>
+      <td>1034395</td>
+      <td>762135</td>
+      <td>NaN</td>
+      <td>4677574</td>
+      <td>1934359</td>
+      <td>84992</td>
+      <td>189583</td>
+      <td>NaN</td>
+      <td>360300</td>
+      <td>55097</td>
+    </tr>
+    <tr>
+      <th>total_stock_value</th>
+      <td>1729541</td>
+      <td>257817</td>
+      <td>5243487</td>
+      <td>10623258</td>
+      <td>63014</td>
+      <td>1599641</td>
+      <td>126027</td>
+      <td>1110705</td>
+      <td>-44093</td>
+      <td>2493616</td>
+      <td>...</td>
+      <td>2056427</td>
+      <td>384930</td>
+      <td>98718</td>
+      <td>6079137</td>
+      <td>15144123</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>139130</td>
+      <td>11884758</td>
+      <td>192758</td>
+    </tr>
+  </tbody>
+</table>
+<p>21 rows × 146 columns</p>
+</div>
+
+
+
+
+```python
+### the input features we want to use
+### can be any key in the person-level dictionary (salary, director_fees, etc.)
+feature_1 = "salary"
+feature_2 = "exercised_stock_options"
+poi  = "poi"
+features_list = [poi, feature_1, feature_2, feature_3]
+data = featureFormat(data_dict, features_list )
+poi, finance_features = targetFeatureSplit( data )
+
+```
+
+
+```python
+from sklearn.cluster import KMeans
+clusterer = KMeans(n_clusters=2, max_iter=300, random_state=42)
+clusterer.fit(finance_features, poi)
+pred = clusterer.predict(finance_features)
+print pred
+```
+
+    [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+     0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0
+     0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+     0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+
+
+
+```python
+try:
+    Draw(pred, finance_features, poi, mark_poi=False, name="clusters.pdf", f1_name=feature_1, f2_name=feature_2)
+except NameError:
+    print "no predictions object named pred found, no clusters to plot"
+```
+
+
+![png](output_6_0.png)
+
+
+
+```python
+ex_stok = []
+for users in data_dict:
+    val = data_dict[users]["exercised_stock_options"]
+    if val == 'NaN':
+        continue
+    ex_stok.append(val)
+print "Maximum exercised_stock_options: {}".format(max(ex_stok))
+print "Minimum exercised_stock_options: {}".format(min(ex_stok))
+```
+
+    Maximum exercised_stock_options: 34348384
+    Minimum exercised_stock_options: 3285
+
+
+
+```python
+ex_stok = []
+for users in data_dict:
+    val = data_dict[users]["salary"]
+    if val == 'NaN':
+        continue
+    ex_stok.append(val)
+print "Maximum salary: {}".format(max(ex_stok))
+print "Minimum salary: {}".format(min(ex_stok))
+```
+
+    Maximum salary: 1111258
+    Minimum salary: 477
+
+
+
+```python
+
+```
