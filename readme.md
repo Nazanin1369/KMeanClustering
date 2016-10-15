@@ -1,4 +1,4 @@
-### K-Mean clustering mini-project
+### Machine Learning K-Mean clustering mini-project 
 
 k-means clustering aims to partition n observations into k clusters in which
 each observation belongs to the cluster with the nearest mean, serving as a prototype of
